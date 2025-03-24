@@ -31,7 +31,7 @@ struct udp_header {
     u_int16_t uh_sum;     // 체크섬
 };
 
-// DNS 헤더 구조체 (간단한 파싱을 위한 정의)
+// DNS 헤더 구조체 
 struct dns_header {
     u_int16_t id;       // 식별자
     u_int16_t flags;    // 플래그
@@ -39,6 +39,26 @@ struct dns_header {
     u_int16_t ancount;  // 응답 레코드 수
     u_int16_t nscount;  // 권한 레코드 수
     u_int16_t arcount;  // 추가 레코드 수
+};
+
+// DNS Query 구조체
+struct dnsquery
+{
+    u_int8_t *qname;
+    u_int16_t qtype;
+    u_int16_t qclass;
+};
+
+// DNS Answer 구조체
+struct dnsanswer
+{
+    u_int8_t *name;
+    u_int16_t atype;
+    u_int16_t aclass;
+    u_int32_t ttl;
+    u_int16_t Rdatalen;
+    u_int8_t *Rdata;
+
 };
 
 // ARP 헤더 구조체 (이더넷 헤더 다음에 오는 부분)
@@ -467,10 +487,10 @@ public:
         std::cout << "원래 ARP 테이블 복구 중..." << std::endl;
         std::lock_guard<std::mutex> lock(mutex);
         for (auto& target : targets) {
-            u_int8_t packet1[sizeof(struct ether_header) + sizeof(struct arp_header)];
-            create_arp_packet(packet1, target->get_mac(), gateway_mac, target->get_ip(), gateway_ip, 2);
+            u_int8_t gateway_recov_packet[sizeof(struct ether_header) + sizeof(struct arp_header)];
+            create_arp_packet(gateway_recov_packet, target->get_mac(), gateway_mac, target->get_ip(), gateway_ip, 2);
             
-            if (pcap_sendpacket(handle, packet1, sizeof(packet1)) != 0) {
+            if (pcap_sendpacket(handle, gateway_recov_packet, sizeof(gateway_recov_packet)) != 0) {
                 std::cerr << "게이트웨이에 복구 패킷 전송 실패: " << pcap_geterr(handle) << std::endl;
             } else {
                 std::cout << "게이트웨이에 복구 패킷 전송 성공: " 
@@ -488,7 +508,7 @@ public:
             }
             
             for (int i = 0; i < 3; i++) {
-                pcap_sendpacket(handle, packet1, sizeof(packet1));
+                pcap_sendpacket(handle, gateway_recov_packet, sizeof(gateway_recov_packet));
                 pcap_sendpacket(handle, packet2, sizeof(packet2));
                 usleep(100000);
             }
